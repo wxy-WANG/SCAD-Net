@@ -42,7 +42,7 @@ CONFIG = {
     "img_size": 256,
     "batch_size": 8,
     "lr": 3e-4,
-    "epochs": 5,
+    "epochs": 100,
     "device": "cuda" if torch.cuda.is_available() else "cpu"
 }
 
