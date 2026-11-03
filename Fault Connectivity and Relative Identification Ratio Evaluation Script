@@ -1,0 +1,58 @@
+import os
+import cv2
+import numpy as np
+from skimage.measure import label, regionprops
+
+
+def calculate_relative_identification_ratio_simple(pred_mask, expert_mask, threshold=0.5):
+    # Directly count white pixels above the threshold
+    pred_pixels = np.sum(pred_mask > threshold)
+    expert_pixels = np.sum(expert_mask > threshold)
+
+    if expert_pixels == 0:
+        raise ValueError("No fault pixels in expert annotation, cannot calculate ratio.")
+
+    return pred_pixels / expert_pixels
+
+
+def calculate_connectivity_score_simple(pred_mask, threshold=0.5, tau=50):
+    # Find connected components directly on the binarized image
+    binary = pred_mask > threshold
+    labeled_img = label(binary, connectivity=2)
+    regions = regionprops(labeled_img)
+
+    total_length = 0
+    connected_length = 0
+
+    for region in regions:
+        # Without skeletonization, use region area (total pixels) to approximate length
+        L_i = region.area
+        total_length += L_i
+        if L_i >= tau:
+            connected_length += L_i
+
+    if total_length == 0:
+        return 0.0
+
+    return (connected_length / total_length) * 100
+
+
+if __name__ == "__main__":
+    pred_path = r"E:\3-unet\results\100\binary_1799.png"
+    expert_path = r"E:\3-unet\results\100\binary_1800.png"
+
+    if os.path.exists(pred_path) and os.path.exists(expert_path):
+        pred_mask = cv2.imdecode(np.fromfile(pred_path, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
+        expert_mask = cv2.imdecode(np.fromfile(expert_path, dtype=np.uint8), cv2.IMREAD_GRAYSCALE)
+
+        if pred_mask is not None and expert_mask is not None:
+            pred_mask = pred_mask / 255.0
+            expert_mask = expert_mask / 255.0
+
+            ratio = calculate_relative_identification_ratio_simple(pred_mask, expert_mask)
+            cs = calculate_connectivity_score_simple(pred_mask, tau=50)
+
+            print(f"Relative Identification Ratio: {ratio:.4f}")
+            print(f"Connectivity Score (CS): {cs:.2f}")
+    else:
+        print("Error: The specified file could not be found.")
